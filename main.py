@@ -47,8 +47,8 @@ async def analyze_response(request: InterviewRequest):
     try:
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
 
-        # Try different models in order based on availability
-        available_models = ["gpt-4-turbo", "gpt-3.5-turbo"]  # Adjust based on API key access
+        # Select the first available model from the detected ones
+        available_models = ["gpt-4.5-preview", "gpt-4o", "gpt-3.5-turbo"]  # Update based on detected models
         response = None
 
         for model in available_models:
