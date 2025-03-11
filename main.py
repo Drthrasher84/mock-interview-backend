@@ -6,7 +6,7 @@ import os
 
 app = FastAPI()
 
-# Allow frontend requests (CORS)
+# Enable CORS for frontend requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all domains (update for security)
@@ -28,6 +28,9 @@ def home():
 
 @app.post("/api/analyze")
 async def analyze_response(request: InterviewRequest):
+    if not openai.api_key:
+        raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
+    
     try:
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
         
@@ -41,4 +44,4 @@ async def analyze_response(request: InterviewRequest):
         return {"feedback": feedback}
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
