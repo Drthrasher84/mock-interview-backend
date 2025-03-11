@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
 import os
 
-app = FastAPI()
+app = FastAPI(title="Mock Interview API")
 
 # Enable CORS for frontend requests
 app.add_middleware(
@@ -16,7 +16,11 @@ app.add_middleware(
 )
 
 # OpenAI API Key from environment variables
-openai.api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    print("⚠️ WARNING: OPENAI_API_KEY is not set!")
+
+openai.api_key = api_key
 
 class InterviewRequest(BaseModel):
     question: str
@@ -26,14 +30,21 @@ class InterviewRequest(BaseModel):
 def home():
     return {"message": "Mock Interview API is running!"}
 
-@app.post("/api/analyze")
+@app.get("/api/check-api-key")  # Endpoint to verify API key
+def check_api_key():
+    if openai.api_key:
+        return {"message": "OpenAI API key is successfully loaded."}
+    else:
+        raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
+
+@app.post("/api/analyze", response_model=dict)
 async def analyze_response(request: InterviewRequest):
     if not openai.api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
     
     try:
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
-        
+
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
@@ -42,9 +53,9 @@ async def analyze_response(request: InterviewRequest):
             ]
         )
         
-        feedback = response.choices[0].message.content
+        feedback = response["choices"][0]["message"]["content"]
         return {"feedback": feedback}
-    
+
     except openai.error.OpenAIError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
