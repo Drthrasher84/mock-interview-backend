@@ -61,7 +61,7 @@ async def analyze_response(request: InterviewRequest):
                     ]
                 )
                 break  # Stop if a model works
-            except openai.error.InvalidRequestError:
+            except openai.InvalidRequestError:
                 continue  # Try the next model if the current one fails
 
         if not response:
@@ -74,7 +74,7 @@ async def analyze_response(request: InterviewRequest):
         raise HTTPException(status_code=401, detail="Invalid OpenAI API key. Please check your credentials.")
     except openai.RateLimitError:
         raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. Try again later.")
-    except openai.OpenAIError as e:
+    except openai.APIError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
