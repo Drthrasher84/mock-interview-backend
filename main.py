@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import openai
 import os
 
-app = FastAPI(title="Mock Interview API", version="1.1")
+app = FastAPI(title="Mock Interview API", version="1.0")
 
 # Enable CORS for frontend requests
 app.add_middleware(
@@ -19,7 +19,6 @@ app.add_middleware(
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     print("⚠️ WARNING: OPENAI_API_KEY is not set!")
-    raise ValueError("Missing OpenAI API key.")
 else:
     print("✅ OpenAI API Key detected.")
 
@@ -29,59 +28,46 @@ class InterviewRequest(BaseModel):
     question: str
     answer: str
 
-@app.get("/")
+@app.get("/")  # Root route to test API is running
 def home():
     return {"message": "Mock Interview API is running!"}
 
-@app.get("/api/check-api-key")
+@app.get("/api/check-api-key")  # Check if API Key is detected
 def check_api_key():
     if openai.api_key:
         return {"message": "OpenAI API key is successfully loaded."}
     else:
         raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
 
-def get_available_chat_models():
-    """Fetches the list of available OpenAI models and selects the first available chat completion model."""
-    try:
-        models = openai.models.list()
-        model_list = [model.id for model in models.data if "gpt" in model.id]  # Filter for GPT models
-        print("🔍 Available Models:", model_list)
-
-        # Prioritize known chat models
-        for model in ["gpt-4.5-preview", "gpt-4o", "gpt-3.5-turbo"]:
-            if model in model_list:
-                print(f"✅ Using model: {model}")
-                return model
-
-        if model_list:
-            print(f"⚠️ Using fallback model: {model_list[0]}")
-            return model_list[0]
-
-        raise ValueError("No chat-compatible OpenAI models found.")
-    except openai.OpenAIError as e:
-        print(f"❌ Error fetching OpenAI models: {e}")
-        raise HTTPException(status_code=500, detail="Error fetching available OpenAI models.")
-
 @app.post("/api/analyze", response_model=dict)
 async def analyze_response(request: InterviewRequest):
     if not openai.api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
-
+    
     try:
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
 
-        # Dynamically get the correct model
-        model_to_use = get_available_chat_models()
+        # Select the first available model from the detected ones
+        available_models = ["gpt-4.5-preview", "gpt-4o", "gpt-3.5-turbo"]  # Update based on detected models
+        response = None
 
-        response = openai.ChatCompletion.create(
-            model=model_to_use,
-            messages=[
-                {"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
-                {"role": "user", "content": prompt}
-            ]
-        )
+        for model in available_models:
+            try:
+                response = openai.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                break  # Stop if a model works
+            except openai.OpenAIError:
+                continue  # Try the next model if the current one fails
 
-        feedback = response["choices"][0]["message"]["content"]
+        if not response:
+            raise HTTPException(status_code=400, detail="No available OpenAI models found for your API key.")
+
+        feedback = response.choices[0].message.content
         return {"feedback": feedback}
 
     except openai.AuthenticationError:
