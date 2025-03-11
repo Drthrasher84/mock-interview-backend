@@ -47,13 +47,25 @@ async def analyze_response(request: InterviewRequest):
     try:
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
 
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
-                {"role": "user", "content": prompt}
-            ]
-        )
+        # Try different models in order based on availability
+        available_models = ["gpt-4-turbo", "gpt-3.5-turbo"]  # Adjust based on API key access
+        response = None
+
+        for model in available_models:
+            try:
+                response = openai.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                break  # Stop if a model works
+            except openai.error.InvalidRequestError:
+                continue  # Try the next model if the current one fails
+
+        if not response:
+            raise HTTPException(status_code=400, detail="No available OpenAI models found for your API key.")
 
         feedback = response.choices[0].message.content
         return {"feedback": feedback}
