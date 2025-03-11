@@ -6,10 +6,10 @@ import os
 
 app = FastAPI()
 
-# Allow frontend requests
+# Allow frontend requests (CORS)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all domains (update this later for security)
+    allow_origins=["*"],  # Allows all domains (update for security)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,7 +22,7 @@ class InterviewRequest(BaseModel):
     question: str
     answer: str
 
-@app.get("/")  # Root test route
+@app.get("/")  # Root route to test API is running
 def home():
     return {"message": "Mock Interview API is running!"}
 
@@ -41,4 +41,4 @@ async def analyze_response(request: InterviewRequest):
         return {"feedback": feedback}
     
     except Exception as e:
-        raise HTTPException(status
+        raise HTTPException(status_code=500, detail=str(e))
