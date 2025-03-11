@@ -28,11 +28,11 @@ class InterviewRequest(BaseModel):
     question: str
     answer: str
 
-@app.get("/")
+@app.get("/")  # Root route to test API is running
 def home():
     return {"message": "Mock Interview API is running!"}
 
-@app.get("/api/check-api-key")
+@app.get("/api/check-api-key")  # Check if API Key is detected
 def check_api_key():
     if openai.api_key:
         return {"message": "OpenAI API key is successfully loaded."}
@@ -43,48 +43,38 @@ def check_api_key():
 async def analyze_response(request: InterviewRequest):
     if not openai.api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
-
+    
     try:
-        print(f"🔍 Received Request: {request}")
-
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
 
-        # Use only models that support chat completions
-        available_models = ["gpt-4.5-preview", "gpt-4o", "gpt-3.5-turbo"]
+        # Select the first available model from the detected ones
+        available_models = ["gpt-4.5-preview", "gpt-4o", "gpt-3.5-turbo"]  # Update based on detected models
         response = None
 
         for model in available_models:
             try:
-                print(f"🔍 Trying model: {model}")
-                response = openai.ChatCompletion.create(  # Fix function call
+                response = openai.ChatCompletion.create(
                     model=model,
                     messages=[
                         {"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
                         {"role": "user", "content": prompt}
                     ]
                 )
-                print("✅ Response received from OpenAI API.")
                 break  # Stop if a model works
-            except openai.error.InvalidRequestError:
-                print(f"⚠️ Model {model} is unavailable, trying next.")
+            except openai.OpenAIError:
                 continue  # Try the next model if the current one fails
 
         if not response:
             raise HTTPException(status_code=400, detail="No available OpenAI models found for your API key.")
 
         feedback = response["choices"][0]["message"]["content"]
-        print(f"✅ AI Feedback: {feedback}")
         return {"feedback": feedback}
 
-    except openai.error.AuthenticationError as e:
-        print(f"❌ Authentication Error: {e}")
+    except openai.AuthenticationError:
         raise HTTPException(status_code=401, detail="Invalid OpenAI API key. Please check your credentials.")
-    except openai.error.RateLimitError as e:
-        print(f"⏳ Rate Limit Exceeded: {e}")
+    except openai.RateLimitError:
         raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. Try again later.")
-    except openai.error.OpenAIError as e:
-        print(f"⚠️ OpenAI API Error: {e}")
+    except openai.APIError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
-        print(f"🚨 Unexpected Error: {e}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
