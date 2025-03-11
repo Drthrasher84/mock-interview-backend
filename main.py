@@ -15,12 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Fetch OpenAI API Key from environment variables
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    print("⚠️ WARNING: OPENAI_API_KEY is not set!")
-
-openai.api_key = api_key
+# OpenAI API Key from environment variables
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class InterviewRequest(BaseModel):
     question: str
@@ -29,13 +25,6 @@ class InterviewRequest(BaseModel):
 @app.get("/")  # Root route to test API is running
 def home():
     return {"message": "Mock Interview API is running!"}
-
-@app.get("/api/check-api-key")  # New route to verify API key
-def check_api_key():
-    if openai.api_key:
-        return {"message": "OpenAI API key is successfully loaded."}
-    else:
-        raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
 
 @app.post("/api/analyze")
 async def analyze_response(request: InterviewRequest):
@@ -47,12 +36,16 @@ async def analyze_response(request: InterviewRequest):
         
         response = openai.ChatCompletion.create(
             model="gpt-4",
-            messages=[{"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
-                      {"role": "user", "content": prompt}]
+            messages=[
+                {"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
+                {"role": "user", "content": prompt}
+            ]
         )
         
-        feedback = response["choices"][0]["message"]["content"]
+        feedback = response.choices[0].message.content
         return {"feedback": feedback}
     
+    except openai.error.OpenAIError as e:
+        raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
