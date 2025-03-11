@@ -61,7 +61,7 @@ async def analyze_response(request: InterviewRequest):
                     ]
                 )
                 break  # Stop if a model works
-            except openai.InvalidRequestError:
+            except openai.OpenAIError:
                 continue  # Try the next model if the current one fails
 
         if not response:
