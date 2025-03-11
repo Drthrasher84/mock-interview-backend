@@ -15,8 +15,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OpenAI API Key from environment variables
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Fetch OpenAI API Key from environment variables
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    print("⚠️ WARNING: OPENAI_API_KEY is not set!")
+
+openai.api_key = api_key
 
 class InterviewRequest(BaseModel):
     question: str
@@ -25,6 +29,13 @@ class InterviewRequest(BaseModel):
 @app.get("/")  # Root route to test API is running
 def home():
     return {"message": "Mock Interview API is running!"}
+
+@app.get("/api/check-api-key")  # New route to verify API key
+def check_api_key():
+    if openai.api_key:
+        return {"message": "OpenAI API key is successfully loaded."}
+    else:
+        raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
 
 @app.post("/api/analyze")
 async def analyze_response(request: InterviewRequest):
