@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
 import os
 
-app = FastAPI(title="Mock Interview API")
+app = FastAPI()
 
 # Enable CORS for frontend requests
 app.add_middleware(
@@ -19,6 +19,8 @@ app.add_middleware(
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     print("⚠️ WARNING: OPENAI_API_KEY is not set!")
+else:
+    print("✅ OpenAI API Key detected.")
 
 openai.api_key = api_key
 
@@ -30,14 +32,7 @@ class InterviewRequest(BaseModel):
 def home():
     return {"message": "Mock Interview API is running!"}
 
-@app.get("/api/check-api-key")  # Endpoint to verify API key
-def check_api_key():
-    if openai.api_key:
-        return {"message": "OpenAI API key is successfully loaded."}
-    else:
-        raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
-
-@app.post("/api/analyze", response_model=dict)
+@app.post("/api/analyze")
 async def analyze_response(request: InterviewRequest):
     if not openai.api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
@@ -55,8 +50,12 @@ async def analyze_response(request: InterviewRequest):
         
         feedback = response["choices"][0]["message"]["content"]
         return {"feedback": feedback}
-
-    except openai.error.OpenAIError as e:
+    
+    except openai.AuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid OpenAI API key. Please check your credentials.")
+    except openai.RateLimitError:
+        raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. Try again later.")
+    except openai.OpenAIError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
