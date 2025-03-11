@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
 import os
 
-app = FastAPI()
+app = FastAPI(title="Mock Interview API", version="1.0")
 
 # Enable CORS for frontend requests
 app.add_middleware(
@@ -32,7 +32,14 @@ class InterviewRequest(BaseModel):
 def home():
     return {"message": "Mock Interview API is running!"}
 
-@app.post("/api/analyze")
+@app.get("/api/check-api-key")  # Check if API Key is detected
+def check_api_key():
+    if openai.api_key:
+        return {"message": "OpenAI API key is successfully loaded."}
+    else:
+        raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
+
+@app.post("/api/analyze", response_model=dict)
 async def analyze_response(request: InterviewRequest):
     if not openai.api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
@@ -47,15 +54,15 @@ async def analyze_response(request: InterviewRequest):
                 {"role": "user", "content": prompt}
             ]
         )
-        
-        feedback = response.choices[0].message["content"]
+
+        feedback = response["choices"][0]["message"]["content"]
         return {"feedback": feedback}
-    
-    except openai.error.AuthenticationError:
+
+    except openai.AuthenticationError:
         raise HTTPException(status_code=401, detail="Invalid OpenAI API key. Please check your credentials.")
-    except openai.error.RateLimitError:
+    except openai.RateLimitError:
         raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. Try again later.")
-    except openai.error.OpenAIError as e:
+    except openai.OpenAIError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
