@@ -48,14 +48,14 @@ async def analyze_response(request: InterviewRequest):
             ]
         )
         
-        feedback = response["choices"][0]["message"]["content"]
+        feedback = response.choices[0].message["content"]
         return {"feedback": feedback}
     
-    except openai.AuthenticationError:
+    except openai.error.AuthenticationError:
         raise HTTPException(status_code=401, detail="Invalid OpenAI API key. Please check your credentials.")
-    except openai.RateLimitError:
+    except openai.error.RateLimitError:
         raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. Try again later.")
-    except openai.OpenAIError as e:
+    except openai.error.OpenAIError as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
