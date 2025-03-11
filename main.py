@@ -43,16 +43,17 @@ def check_api_key():
 async def analyze_response(request: InterviewRequest):
     if not openai.api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key is missing.")
-    
+
     try:
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
 
         # Select the first available model from the detected ones
-        available_models = ["gpt-4.5-preview", "gpt-4o", "gpt-3.5-turbo"]  # Update based on detected models
+        available_models = ["gpt-4.5-preview", "gpt-4o", "gpt-3.5-turbo"]
         response = None
 
         for model in available_models:
             try:
+                print(f"🔍 Trying model: {model}")
                 response = openai.chat.completions.create(
                     model=model,
                     messages=[
@@ -60,21 +61,28 @@ async def analyze_response(request: InterviewRequest):
                         {"role": "user", "content": prompt}
                     ]
                 )
-                break  # Stop if a model works
-            except openai.OpenAIError:
-                continue  # Try the next model if the current one fails
+                print(f"✅ Response from OpenAI: {response}")
+                break
+            except openai.OpenAIError as e:
+                print(f"⚠️ OpenAI Error for model {model}: {e}")
+                continue
 
         if not response:
             raise HTTPException(status_code=400, detail="No available OpenAI models found for your API key.")
 
         feedback = response.choices[0].message.content
+        print(f"✅ AI Feedback: {feedback}")
         return {"feedback": feedback}
 
-    except openai.AuthenticationError:
+    except openai.AuthenticationError as e:
+        print(f"❌ Authentication Error: {e}")
         raise HTTPException(status_code=401, detail="Invalid OpenAI API key. Please check your credentials.")
-    except openai.RateLimitError:
+    except openai.RateLimitError as e:
+        print(f"⏳ Rate Limit Exceeded: {e}")
         raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. Try again later.")
     except openai.APIError as e:
+        print(f"⚠️ OpenAI API Error: {e}")
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
     except Exception as e:
+        print(f"🚨 Unexpected Error: {e}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
