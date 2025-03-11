@@ -47,7 +47,7 @@ async def analyze_response(request: InterviewRequest):
     try:
         prompt = f"Question: {request.question}\nAnswer: {request.answer}\n\nEvaluate the response based on clarity, completeness, and professionalism. Provide constructive feedback."
 
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are an expert interviewer evaluating responses for a claims adjuster role."},
@@ -55,7 +55,7 @@ async def analyze_response(request: InterviewRequest):
             ]
         )
 
-        feedback = response["choices"][0]["message"]["content"]
+        feedback = response.choices[0].message.content
         return {"feedback": feedback}
 
     except openai.AuthenticationError:
